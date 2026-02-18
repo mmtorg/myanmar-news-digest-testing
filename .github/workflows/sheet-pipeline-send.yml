@@ -592,7 +592,7 @@ jobs:
 
           # ===== multi-line secret → ファイルに保存（$GITHUB_ENV には書かない）=====
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
+          printf '%s' "${GOOGLE_SERVICE_ACCOUNT_JSON}" > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
           echo "GOOGLE_SERVICE_ACCOUNT_FILE=$SA_FILE" >> "$GITHUB_ENV"
 
