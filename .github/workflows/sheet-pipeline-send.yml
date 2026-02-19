@@ -43,7 +43,9 @@ on:
 # どのイベントでも 1 workflow につき環境ごとに直列化
 concurrency:
   # 手動実行: main→production / develop→development / その他→production（元の式を踏襲）
-  group: mna-sheet-pipeline-${{ github.event_name == 'workflow_dispatch' && (github.ref_name == 'main' && 'production' || 'development') || 'production' }}
+  group: mna-sheet-pipeline-${{ github.event_name == 'workflow_dispatch'
+    && (github.ref_name == 'develop' && 'development' || 'production')
+    || 'production' }}
   cancel-in-progress: false
 
 permissions:
@@ -120,12 +122,11 @@ jobs:
           PY
 
       - name: Write GOOGLE_APPLICATION_CREDENTIALS
-        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
         run: |
+          set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' "${GOOGLE_SERVICE_ACCOUNT_JSON}" > "$SA_FILE"
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
-          echo "GOOGLE_SERVICE_ACCOUNT_FILE=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Collect → write to sheet (15:50 run, clear yesterday once)
         run: |
@@ -218,12 +219,11 @@ jobs:
           PY
 
       - name: Write GOOGLE_APPLICATION_CREDENTIALS
-        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
         run: |
+          set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' "${GOOGLE_SERVICE_ACCOUNT_JSON}" > "$SA_FILE"
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
-          echo "GOOGLE_SERVICE_ACCOUNT_FILE=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Collect → append to sheet (17:50/20:50/21:50/22:50 runs)
         run: |
@@ -339,12 +339,11 @@ jobs:
           pip install -q google-api-python-client google-auth
 
       - name: Write GOOGLE_APPLICATION_CREDENTIALS
-        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
         run: |
+          set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' "${GOOGLE_SERVICE_ACCOUNT_JSON}" > "$SA_FILE"
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
-          echo "GOOGLE_SERVICE_ACCOUNT_FILE=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Assert vendored fonts & export PDF_FONT_PATH
         run: |
@@ -529,6 +528,23 @@ jobs:
           ).execute()
           print('marked sent:', today)
           PY
+
+  manual-run:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'develop' && 'development' || 'production' }}
+    env:
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+      LITE_EMAIL_RECIPIENTS: ${{ secrets.LITE_EMAIL_RECIPIENTS }}
+      BUSINESS_EMAIL_RECIPIENTS: ${{ secrets.BUSINESS_EMAIL_RECIPIENTS }}
+      TRIAL_EMAIL_RECIPIENTS: ${{ secrets.TRIAL_EMAIL_RECIPIENTS }}
+      INTERNAL_EMAIL_RECIPIENTS: ${{ secrets.INTERNAL_EMAIL_RECIPIENTS }}
+      GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+      GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+      GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+      PAID_PLAN_URL: ${{ secrets.PAID_PLAN_URL }}
+    steps:
       - name: Checkout (手動で選んだブランチ)
         uses: actions/checkout@v4
         with:
@@ -593,7 +609,7 @@ jobs:
 
           # ===== multi-line secret → ファイルに保存（$GITHUB_ENV には書かない）=====
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' "${GOOGLE_SERVICE_ACCOUNT_JSON}" > "$SA_FILE"
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
           echo "GOOGLE_SERVICE_ACCOUNT_FILE=$SA_FILE" >> "$GITHUB_ENV"
 
@@ -661,7 +677,7 @@ jobs:
           echo "PDF_FONT_PATH=${PDF_FONT_PATH:-<not-set>}"
 
       - name: Run selected mode
-        if: ${{ github.event_name != 'workflow_dispatch' || (inputs.mode != 'notify-email' && inputs.mode != 'send-only') }}
+        if: ${{ inputs.mode == 'collect16' || inputs.mode == 'collect' }}
         run: |
           set -euo pipefail
           echo "Run case \"${{ inputs.mode }}\" in"
