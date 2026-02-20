@@ -125,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
+          printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Collect → write to sheet (15:50 run, clear yesterday once)
@@ -222,7 +222,7 @@ jobs:
         run: |
           set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
+          printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Collect → append to sheet (17:50/20:50/21:50/22:50 runs)
@@ -342,7 +342,7 @@ jobs:
         run: |
           set -euo pipefail
           SA_FILE="$RUNNER_TEMP/sa.json"
-          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > "$SA_FILE"
+          printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > "$SA_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_FILE" >> "$GITHUB_ENV"
 
       - name: Assert vendored fonts & export PDF_FONT_PATH
@@ -365,59 +365,59 @@ jobs:
           echo "built=false" >> "$GITHUB_OUTPUT"
 
           check_sheet () {
-            python - <<'PY'
-            import os, sys
-            from datetime import datetime
-            from google.oauth2.service_account import Credentials
-            from googleapiclient.discovery import build
+          python - <<'PY'
+          import os, sys
+          from datetime import datetime
+          from google.oauth2.service_account import Credentials
+          from googleapiclient.discovery import build
 
-            SHEET_ID = os.environ['MNA_SHEET_ID']
-            SHEET_NAME = os.environ.get('MNA_SHEET_NAME', 'prod')
-            TRIGGER_VALUE = os.environ.get('TRIGGER_VALUE', 'a')
-            TRIGGER_RANGE = os.environ.get('TRIGGER_COLUMN_RANGE', 'K:K')
-            SENT_MARK_CELL = os.environ.get('SENT_MARK_CELL', 'config!A1')
-            WATCH_TZ = os.environ.get('WATCH_TZ', 'Asia/Yangon')
+          SHEET_ID = os.environ['MNA_SHEET_ID']
+          SHEET_NAME = os.environ.get('MNA_SHEET_NAME', 'prod')
+          TRIGGER_VALUE = os.environ.get('TRIGGER_VALUE', 'a')
+          TRIGGER_RANGE = os.environ.get('TRIGGER_COLUMN_RANGE', 'K:K')
+          SENT_MARK_CELL = os.environ.get('SENT_MARK_CELL', 'config!A1')
+          WATCH_TZ = os.environ.get('WATCH_TZ', 'Asia/Yangon')
 
-            creds = None
-            sa_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '')
-            if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
-              creds = Credentials.from_service_account_file(
-                os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
-              )
-            elif sa_json:
-              import json, tempfile
-              fd, p = tempfile.mkstemp(suffix='.json')
-              with os.fdopen(fd, 'w') as f:
-                f.write(sa_json)
-              creds = Credentials.from_service_account_file(p, scopes=['https://www.googleapis.com/auth/spreadsheets'])
-            else:
-              print('missing service account json', file=sys.stderr)
-              sys.exit(2)
+          creds = None
+          sa_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '')
+          if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+            creds = Credentials.from_service_account_file(
+              os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
+              scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+          elif sa_json:
+            import json, tempfile
+            fd, p = tempfile.mkstemp(suffix='.json')
+            with os.fdopen(fd, 'w') as f:
+              f.write(sa_json)
+            creds = Credentials.from_service_account_file(p, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+          else:
+            print('missing service account json', file=sys.stderr)
+            sys.exit(2)
 
-            service = build('sheets', 'v4', credentials=creds, cache_discovery=False)
-            sheets = service.spreadsheets().values()
+          service = build('sheets', 'v4', credentials=creds, cache_discovery=False)
+          sheets = service.spreadsheets().values()
 
-            # same-day guard: if config!A1 == today(Asia/Yangon) => exit 20
-            mark = sheets.get(spreadsheetId=SHEET_ID, range=SENT_MARK_CELL).execute().get('values', [])
-            mark_val = (mark[0][0] if mark and mark[0] else '').strip()
-            try:
-              import zoneinfo
-              tz = zoneinfo.ZoneInfo(WATCH_TZ)
-              today = datetime.now(tz).strftime('%Y-%m-%d')
-            except Exception:
-              today = datetime.utcnow().strftime('%Y-%m-%d')
-            if mark_val == today:
-              sys.exit(20)
+          # same-day guard: if config!A1 == today(Asia/Yangon) => exit 20
+          mark = sheets.get(spreadsheetId=SHEET_ID, range=SENT_MARK_CELL).execute().get('values', [])
+          mark_val = (mark[0][0] if mark and mark[0] else '').strip()
+          try:
+            import zoneinfo
+            tz = zoneinfo.ZoneInfo(WATCH_TZ)
+            today = datetime.now(tz).strftime('%Y-%m-%d')
+          except Exception:
+            today = datetime.utcnow().strftime('%Y-%m-%d')
+          if mark_val == today:
+            sys.exit(20)
 
-            # trigger check: any cell in K:K == 'a' (exact match, trim)
-            rng = f"{SHEET_NAME}!{TRIGGER_RANGE}"
-            vals = sheets.get(spreadsheetId=SHEET_ID, range=rng).execute().get('values', [])
-            flat = [v[0].strip() for v in vals if v and isinstance(v[0], str)]
-            if any(x == TRIGGER_VALUE for x in flat):
-              sys.exit(10)
-            sys.exit(0)
-            PY
+          # trigger check: any cell in K:K == 'a' (exact match, trim)
+          rng = f"{SHEET_NAME}!{TRIGGER_RANGE}"
+          vals = sheets.get(spreadsheetId=SHEET_ID, range=rng).execute().get('values', [])
+          flat = [v[0].strip() for v in vals if v and isinstance(v[0], str)]
+          if any(x == TRIGGER_VALUE for x in flat):
+            sys.exit(10)
+          sys.exit(0)
+          PY
           }
 
           POLL=${POLL_INTERVAL_SEC:-600}
