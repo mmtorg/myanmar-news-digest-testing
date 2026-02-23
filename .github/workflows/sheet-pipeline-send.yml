@@ -314,7 +314,7 @@ jobs:
       TRIGGER_COLUMN_RANGE: "K:K"
       # 送信済み日付を記録するセル（同一日の重複実行防止）
       SENT_MARK_CELL: "config!A1"
-      POLL_INTERVAL_SEC: "600" # 10分
+      POLL_INTERVAL_SEC: "1200" # 20分
       MAX_WATCH_SEC: "18000" # 5時間（GitHub Actions 実行上限を考慮）
       BUILD_FAIL_RETRY_LIMIT: "2" # build-bundle 失敗後、監視ループに戻る回数（最大2回）
       MAIL_RETRY_LIMIT: "2" # メール送信リトライ回数（最大2回）
